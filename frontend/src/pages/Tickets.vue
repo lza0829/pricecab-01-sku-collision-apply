@@ -113,7 +113,7 @@ onMounted(() => refresh().catch((e) => (err.value = e.message)))
           <td>{{ t.effective_at }}</td>
           <td>{{ t.line_count }}</td>
           <td>
-            <span class="tag" :class="t.status === 'applied' ? 'ok' : 'warn'">{{ t.status }}</span>
+            <span class="tag" :class="t.status === 'applied' ? 'ok' : (t.status === 'covered' ? 'muted' : 'warn')">{{ t.status }}</span>
           </td>
           <td>{{ t.apply_batch_id || '—' }}</td>
         </tr>

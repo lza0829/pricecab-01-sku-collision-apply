@@ -53,7 +53,21 @@ def init_schema(conn) -> None:
           clock_at TEXT NOT NULL,
           ticket_count INTEGER NOT NULL,
           line_count INTEGER NOT NULL,
+          skipped_count INTEGER NOT NULL DEFAULT 0,
+          strategy TEXT NOT NULL DEFAULT 'last_write_wins',
           status TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS apply_batch_lines (
+          id INTEGER PRIMARY KEY,
+          batch_id INTEGER NOT NULL REFERENCES apply_batches(id) ON DELETE CASCADE,
+          queue_pos INTEGER NOT NULL,
+          ticket_id INTEGER NOT NULL,
+          ticket_no TEXT NOT NULL,
+          sku_code TEXT NOT NULL,
+          new_price REAL NOT NULL,
+          status TEXT NOT NULL,
+          covered_by_ticket_no TEXT,
           created_at TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS price_book (
@@ -89,10 +103,21 @@ def init_schema(conn) -> None:
     )
 
 
+def _ensure_column(conn, table: str, column: str, ddl: str) -> None:
+    """Idempotently add a column to an existing table (for pre-existing DBs)."""
+    cols = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+    if column not in cols:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {ddl}")
+
+
 def seed_if_empty() -> None:
     conn = connect()
     try:
         init_schema(conn)
+        _ensure_column(conn, "apply_batches", "skipped_count",
+                       "skipped_count INTEGER NOT NULL DEFAULT 0")
+        _ensure_column(conn, "apply_batches", "strategy",
+                       "strategy TEXT NOT NULL DEFAULT 'last_write_wins'")
         n = conn.execute("SELECT COUNT(*) c FROM skus").fetchone()["c"]
         if n:
             conn.commit()
